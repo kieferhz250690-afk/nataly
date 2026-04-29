@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Universo 3D Detallado</title>
+    <style>
+        /* Estilos básicos para que la página ocupe toda la pantalla */
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Arial', sans-serif; }
+        canvas { display: block; }
+
+        /* Estilo del botón "Obsesionado" */
+        #btn-obsessed {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 35px;
+            font-size: 18px;
+            color: white;
+            background: linear-gradient(45deg, #6a11cb, #2575fc); /* Degradado azul/morado */
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(37, 117, 252, 0.5);
+            transition: 0.3s;
+            z-index: 100;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        #btn-obsessed:hover {
+            box-shadow: 0 0 30px rgba(106, 17, 203, 0.8);
+            transform: translateX(-50%) scale(1.1);
+        }
+
+        /* Texto informativo arriba */
+        #info {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            pointer-events: none;
+            letter-spacing: 3px;
+            text-shadow: 0 0 10px #fff;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="info">SISTEMA SOLAR EXPLORER</div>
+    <button id="btn-obsessed">estoy obsecionado contigo</button>
+
+    <script type="module">
+        import * as THREE from 'https://cdn.skypack.dev/three@0.136.0';
+        import { OrbitControls } from 'https://cdn.skypack.dev/three@0.136.0/examples/jsm/controls/OrbitControls.js';
+
+        // --- 1. CONFIGURACIÓN DEL ESCENARIO ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // --- 2. FONDO DE ESTRELLAS ---
+        const starGeometry = new THREE.BufferGeometry();
+        const starVertices = [];
+        for (let i = 0; i < 15000; i++) {
+            starVertices.push((Math.random() - 0.5) * 2000, (Math.random() - 0.5) * 2000, (Math.random() - 0.5) * 2000);
+        }
+        starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+        const stars = new THREE.Points(starGeometry, new THREE.PointsMaterial({ color: 0xffffff, size: 0.5 }));
+        scene.add(stars);
+
+        // --- 3. LUCES ---
+        const sunLight = new THREE.PointLight(0xffffff, 2, 1000); // Luz desde el sol
+        scene.add(sunLight);
+        const ambientLight = new THREE.AmbientLight(0x222222); // Luz ambiental suave
+        scene.add(ambientLight);
+
+        // --- 4. EL SOL ---
+        const sunGeo = new THREE.SphereGeometry(12, 32, 32);
+        const sunMat = new THREE.MeshBasicMaterial({ color: 0xffcc00 }); // El sol no recibe sombras
+        const sun = new THREE.Mesh(sunGeo, sunMat);
+        scene.add(sun);
+
+        // --- 5. FUNCIÓN PARA CREAR PLANETAS DETALLADOS ---
+        const planets = [];
+        function addPlanet(size, color, dist, speed, hasRings = false) {
+            const geo = new THREE.SphereGeometry(size, 32, 32);
+            const mat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.7 });
+            const mesh = new THREE.Mesh(geo, mat);
+            
+            const pivot = new THREE.Object3D(); // Objeto invisible para girar alrededor del sol
+            scene.add(pivot);
+            pivot.add(mesh);
+            mesh.position.set(dist, 0, 0);
+
+            // Si es Saturno, añadimos anillos
+            if (hasRings) {
+                const ringGeo = new THREE.RingGeometry(size + 2, size + 6, 32);
+                const ringMat = new THREE.MeshBasicMaterial({ color: 0x888888, side: THREE.DoubleSide, transparent: true, opacity: 0.6 });
+                const ring = new THREE.Mesh(ringGeo, ringMat);
+                ring.rotation.x = Math.PI / 2;
+                mesh.add(ring);
+            }
+
+            const planetData = { mesh, pivot, speed };
+            planets.push(planetData);
+            return planetData;
+        }
+
+        // --- 6. AGREGAR LOS 8 PLANETAS ---
+        addPlanet(1.5, 0x888888, 25, 0.04);  // Mercurio
+        addPlanet(2.8, 0xe3bb76, 35, 0.015); // Venus
+        addPlanet(3, 0x2233ff, 48, 0.01);    // Tierra
+        addPlanet(2, 0xff4500, 62, 0.008);   // Marte
+        addPlanet(7, 0xd2b48c, 85, 0.004);   // Júpiter
+        addPlanet(6, 0xf0e68c, 110, 0.002, true); // Saturno (con anillos)
+        addPlanet(4, 0x81d4fa, 135, 0.0015); // Urano
+        addPlanet(4, 0x3f51b5, 155, 0.001);  // Neptuno
+
+        // Cámara inicial
+        camera.position.z = 180;
+        camera.position.y = 100;
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+
+        // --- 7. ANIMACIÓN ---
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Rotación del sol
+            sun.rotation.y += 0.002;
+
+            // Rotación y Traslación de planetas
+            planets.forEach(p => {
+                p.pivot.rotation.y += p.speed; // Gira alrededor del sol
+                p.mesh.rotation.y += 0.01;     // Gira sobre su propio eje
+            });
+
+            controls.update();
+            renderer.render(scene, camera);
+        }
+
+        // Reajuste si cambias el tamaño de la ventana
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        animate();
+
+        // Acción del botón
+        document.getElementById('btn-obsessed').addEventListener('click', () => {
+            alert('🚀 ¡El universo es inmenso, pero mi código por ti es infinito! ✨');
+        });
+
+    </script>
+</body>
+</html>
